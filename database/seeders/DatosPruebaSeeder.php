@@ -58,6 +58,7 @@ class DatosPruebaSeeder extends Seeder
                     'email_verified_at' => now(),
                     'password' => Hash::make('password'),
                 ],
+                
             );
 
             foreach ($datosUsuario['ingresos'] as $mes => $monto) {
