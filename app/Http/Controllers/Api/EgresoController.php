@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Egreso\IndexEgresoRequest;
 use App\Http\Requests\Egreso\StoreEgresoRequest;
 use App\Http\Requests\Egreso\UpdateEgresoRequest;
+use App\Http\Resources\Egreso\EgresoCollection;
+use App\Http\Resources\Egreso\EgresoResource;
 use App\Models\Egreso;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +15,7 @@ use Illuminate\Http\Response;
 
 class EgresoController extends Controller
 {
-    public function index(IndexEgresoRequest $request): JsonResponse
+    public function index(IndexEgresoRequest $request): EgresoCollection
     {
         $filters = $request->validated();
 
@@ -31,7 +33,7 @@ class EgresoController extends Controller
             ->orderByDesc('fecha')
             ->get();
 
-        return response()->json($egresos);
+        return new EgresoCollection($egresos);
     }
 
     public function store(StoreEgresoRequest $request): JsonResponse
@@ -43,22 +45,24 @@ class EgresoController extends Controller
 
         $egreso->load(['categoria', 'subcategoria']);
 
-        return response()->json($egreso, 201);
+        return (new EgresoResource($egreso))
+            ->response()
+            ->setStatusCode(201);
     }
 
-    public function show(Request $request, int $egreso): JsonResponse
+    public function show(Request $request, int $egreso): EgresoResource
     {
-        return response()->json($this->egresoDelUsuario($request, $egreso));
+        return new EgresoResource($this->egresoDelUsuario($request, $egreso));
     }
 
-    public function update(UpdateEgresoRequest $request, int $egreso): JsonResponse
+    public function update(UpdateEgresoRequest $request, int $egreso): EgresoResource
     {
         $egreso = $this->egresoDelUsuario($request, $egreso);
 
         $egreso->update($request->validated());
         $egreso->load(['categoria', 'subcategoria']);
 
-        return response()->json($egreso);
+        return new EgresoResource($egreso);
     }
 
     public function destroy(Request $request, int $egreso): Response
