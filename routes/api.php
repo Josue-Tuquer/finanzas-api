@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EgresoController;
+use App\Http\Controllers\Api\IngresoController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
@@ -13,4 +14,5 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('auth/logout', [AuthController::class, 'logout']);
 
     Route::apiResource('egresos', EgresoController::class);
+    Route::apiResource('ingresos', IngresoController::class);
 });
