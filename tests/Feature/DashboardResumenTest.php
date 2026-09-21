@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Categoria;
 use App\Models\Egreso;
 use App\Models\Ingreso;
 use App\Models\User;
@@ -61,6 +62,65 @@ class DashboardResumenTest extends TestCase
                 'egresos_acumulados' => '0',
                 'balance_acumulado' => '0',
                 'porcentaje_gastado' => '0',
+            ]);
+    }
+
+    public function test_returns_only_the_authenticated_users_expenses_grouped_by_category_for_the_month(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $alimentacion = Categoria::factory()->for($user)->create([
+            'nombre' => 'Alimentacion',
+            'tipo' => 'egreso',
+        ]);
+        $transporte = Categoria::factory()->for($user)->create([
+            'nombre' => 'Transporte',
+            'tipo' => 'egreso',
+        ]);
+        $categoriaOtroUsuario = Categoria::factory()->for($otherUser)->create([
+            'tipo' => 'egreso',
+        ]);
+
+        Egreso::factory()->for($user)->create([
+            'categoria_id' => $alimentacion->id,
+            'fecha' => '2026-03-02',
+            'monto' => '100.00',
+        ]);
+        Egreso::factory()->for($user)->create([
+            'categoria_id' => $alimentacion->id,
+            'fecha' => '2026-03-20',
+            'monto' => '150.00',
+        ]);
+        Egreso::factory()->for($user)->create([
+            'categoria_id' => $transporte->id,
+            'fecha' => '2026-03-10',
+            'monto' => '75.00',
+        ]);
+        Egreso::factory()->for($user)->create([
+            'categoria_id' => $transporte->id,
+            'fecha' => '2026-04-01',
+            'monto' => '500.00',
+        ]);
+        Egreso::factory()->for($otherUser)->create([
+            'categoria_id' => $categoriaOtroUsuario->id,
+            'fecha' => '2026-03-10',
+            'monto' => '999.00',
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/dashboard/egresos-por-categoria?anio=2026&mes=3')
+            ->assertOk()
+            ->assertExactJson([
+                [
+                    'id' => $alimentacion->id,
+                    'nombre' => 'Alimentacion',
+                    'total' => '250',
+                ],
+                [
+                    'id' => $transporte->id,
+                    'nombre' => 'Transporte',
+                    'total' => '75',
+                ],
             ]);
     }
 }

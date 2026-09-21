@@ -55,4 +55,28 @@ class DashboardController extends Controller
             'porcentaje_gastado' => (string) $resumen->porcentaje_gastado,
         ]);
     }
+
+    public function egresosPorCategoria(ResumenDashboardRequest $request): JsonResponse
+    {
+        $filters = $request->validated();
+        $inicioMes = CarbonImmutable::create($filters['anio'], $filters['mes'], 1)->startOfDay();
+        $inicioMesSiguiente = $inicioMes->addMonth();
+
+        $egresosPorCategoria = Egreso::query()
+            ->join('categorias', 'categorias.id', '=', 'egresos.categoria_id')
+            ->where('egresos.user_id', $request->user()->id)
+            ->where('egresos.fecha', '>=', $inicioMes->toDateString())
+            ->where('egresos.fecha', '<', $inicioMesSiguiente->toDateString())
+            ->groupBy('categorias.id', 'categorias.nombre')
+            ->orderByDesc('total')
+            ->selectRaw('categorias.id, categorias.nombre, SUM(egresos.monto) as total')
+            ->get()
+            ->map(fn ($categoria) => [
+                'id' => $categoria->id,
+                'nombre' => $categoria->nombre,
+                'total' => (string) $categoria->total,
+            ]);
+
+        return response()->json($egresosPorCategoria);
+    }
 }
