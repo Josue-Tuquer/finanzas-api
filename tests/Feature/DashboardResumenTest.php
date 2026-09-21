@@ -123,4 +123,36 @@ class DashboardResumenTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_returns_all_twelve_months_for_the_annual_summary_including_empty_ones(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        Ingreso::factory()->for($user)->create(['fecha' => '2026-01-10', 'monto' => '1000.00']);
+        Ingreso::factory()->for($user)->create(['fecha' => '2026-03-10', 'monto' => '400.00']);
+        Egreso::factory()->for($user)->create(['fecha' => '2026-03-15', 'monto' => '150.00']);
+        Egreso::factory()->for($user)->create(['fecha' => '2026-12-20', 'monto' => '200.00']);
+        Ingreso::factory()->for($user)->create(['fecha' => '2027-01-10', 'monto' => '999.00']);
+        Ingreso::factory()->for($otherUser)->create(['fecha' => '2026-03-10', 'monto' => '9999.00']);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/dashboard/resumen-anual?anio=2026')
+            ->assertOk()
+            ->assertJsonCount(12)
+            ->assertExactJson([
+                ['mes' => 1, 'ingresos' => '1000', 'egresos' => '0', 'balance' => '1000'],
+                ['mes' => 2, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 3, 'ingresos' => '400', 'egresos' => '150', 'balance' => '250'],
+                ['mes' => 4, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 5, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 6, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 7, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 8, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 9, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 10, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 11, 'ingresos' => '0', 'egresos' => '0', 'balance' => '0'],
+                ['mes' => 12, 'ingresos' => '0', 'egresos' => '200', 'balance' => '-200'],
+            ]);
+    }
 }

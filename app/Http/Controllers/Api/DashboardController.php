@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Dashboard\ResumenAnualDashboardRequest;
 use App\Http\Requests\Dashboard\ResumenDashboardRequest;
 use App\Models\Egreso;
 use App\Models\Ingreso;
@@ -78,5 +79,47 @@ class DashboardController extends Controller
             ]);
 
         return response()->json($egresosPorCategoria);
+    }
+
+    public function resumenAnual(ResumenAnualDashboardRequest $request): JsonResponse
+    {
+        $anio = $request->validated('anio');
+        $inicioAnio = CarbonImmutable::create($anio, 1, 1)->startOfDay();
+        $inicioSiguienteAnio = $inicioAnio->addYear();
+
+        $ingresos = Ingreso::query()
+            ->where('user_id', $request->user()->id)
+            ->where('fecha', '>=', $inicioAnio->toDateString())
+            ->where('fecha', '<', $inicioSiguienteAnio->toDateString())
+            ->selectRaw('CAST(SUBSTR(fecha, 6, 2) AS UNSIGNED) as mes, SUM(monto) as ingresos, 0 as egresos')
+            ->groupBy('mes');
+
+        $egresos = Egreso::query()
+            ->where('user_id', $request->user()->id)
+            ->where('fecha', '>=', $inicioAnio->toDateString())
+            ->where('fecha', '<', $inicioSiguienteAnio->toDateString())
+            ->selectRaw('CAST(SUBSTR(fecha, 6, 2) AS UNSIGNED) as mes, 0 as ingresos, SUM(monto) as egresos')
+            ->groupBy('mes');
+
+        $totalesPorMes = DB::query()
+            ->fromSub($ingresos->unionAll($egresos), 'movimientos')
+            ->selectRaw('mes, SUM(ingresos) as ingresos, SUM(egresos) as egresos, SUM(ingresos) - SUM(egresos) as balance')
+            ->groupBy('mes')
+            ->orderBy('mes')
+            ->get()
+            ->keyBy('mes');
+
+        $resumenAnual = collect(range(1, 12))->map(function (int $mes) use ($totalesPorMes): array {
+            $totales = $totalesPorMes->get($mes);
+
+            return [
+                'mes' => $mes,
+                'ingresos' => (string) ($totales->ingresos ?? 0),
+                'egresos' => (string) ($totales->egresos ?? 0),
+                'balance' => (string) ($totales->balance ?? 0),
+            ];
+        });
+
+        return response()->json($resumenAnual);
     }
 }
